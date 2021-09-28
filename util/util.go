@@ -5,7 +5,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/mount-utils"
 )
@@ -24,7 +24,7 @@ func UnmountPath(mountPath string, mounter mount.Interface) error {
 func UnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
 	pathExists, pathErr := PathExists(mountPath)
 	if !pathExists {
-		glog.Warningf("Warning: Unmount skipped because path does not exist: %v", mountPath)
+		log.Warningf("Warning: Unmount skipped because path does not exist: %v", mountPath)
 		return nil
 	}
 	corruptedMnt := isCorruptedMnt(pathErr)
@@ -55,13 +55,13 @@ func doUnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMou
 		}
 
 		if notMnt {
-			glog.Warningf("Warning: %q is not a mountpoint, deleting", mountPath)
+			log.Warningf("Warning: %q is not a mountpoint, deleting", mountPath)
 			return os.Remove(mountPath)
 		}
 	}
 
 	// Unmount the mount path
-	glog.V(4).Infof("%q is a mountpoint, unmounting", mountPath)
+	log.Infof("%q is a mountpoint, unmounting", mountPath)
 	if err := mounter.Unmount(mountPath); err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func doUnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMou
 		return mntErr
 	}
 	if notMnt {
-		glog.V(4).Infof("%q is unmounted, deleting the directory", mountPath)
+		log.Infof("%q is unmounted, deleting the directory", mountPath)
 		return os.Remove(mountPath)
 	}
 	return fmt.Errorf("Failed to unmount path %v", mountPath)

@@ -13,9 +13,6 @@ var rootCmd = &cobra.Command{
 var rootConfig = config.NewConfig()
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&rootConfig.NodeID, "nodeid", "", "CSI node id")
-	_ = rootCmd.MarkPersistentFlagRequired("nodeid")
-
 	rootCmd.PersistentFlags().StringVar(&rootConfig.Endpoint, "endpoint", "", "CSI endpoint")
 
 	rootCmd.PersistentFlags().StringVar(&rootConfig.HeketiURL, "heketiurl", "", "heketi rest endpoint")

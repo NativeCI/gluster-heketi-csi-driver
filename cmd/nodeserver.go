@@ -16,5 +16,7 @@ var nodeserverCmd = &cobra.Command{
 }
 
 func init() {
+	nodeserverCmd.PersistentFlags().StringVar(&rootConfig.NodeID, "nodeid", "", "CSI node id")
+	_ = nodeserverCmd.MarkPersistentFlagRequired("nodeid")
 	rootCmd.AddCommand(nodeserverCmd)
 }

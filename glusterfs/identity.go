@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
 // IdentityServer struct of Glusterfs CSI driver with supported methods of CSI
@@ -27,7 +26,7 @@ func (is *IdentityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginI
 		Name:          glusterfsCSIDriverName,
 		VendorVersion: glusterfsCSIDriverVersion,
 	}
-	glog.V(1).Infof("plugininfo response: %+v", resp)
+	log.Infof("plugininfo response: %+v", resp)
 	return resp, nil
 }
 
@@ -44,7 +43,7 @@ func (is *IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.Ge
 			},
 		},
 	}
-	glog.V(1).Infof("plugin capability response: %+v", resp)
+	log.Infof("plugin capability response: %+v", resp)
 	return resp, nil
 }
 

@@ -3,19 +3,16 @@ package glusterfs
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/NativeCI/gluster-heketi-csi-driver/util"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	"github.com/heketi/heketi/pkg/glusterfs/api"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-type Empty = csi.UnimplementedControllerServer
 
 type VolumeCapacity interface {
 	GetCapacityRange() *csi.CapacityRange
@@ -50,9 +47,9 @@ func (server *ControllerServer) Run() {
 
 // CreateVolume creates and starts the volume
 func (cs *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	glog.V(2).Infof("request received %+v", protosanitizer.StripSecrets(req))
+	log.Infof("request received %+v", protosanitizer.StripSecrets(req))
 
-	glog.V(1).Infof("creating volume with name %s", req.Name)
+	log.Infof("creating volume with name %s", req.Name)
 
 	volSizeBytes := cs.getVolumeSize(req)
 
@@ -64,28 +61,22 @@ func (cs *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		Name: req.Name,
 	})
 	if err != nil {
-		glog.Errorf("failed to create volume: %v", err)
+		log.Errorf("failed to create volume: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create volume: %v", err)
 	}
-	glusterServer, bkpServers, err := cs.getClusterNodes()
-	if err != nil {
-		glog.Errorf("failed to get cluster nodes: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to get cluster nodes: %v", err)
-	}
-
 	resp := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volume.Id,
 			CapacityBytes: req.GetCapacityRange().RequiredBytes,
 			VolumeContext: map[string]string{
-				"glustervol":        volume.Id,
-				"glusterserver":     *glusterServer,
-				"glusterbkpservers": strings.Join(bkpServers, ":"),
+				"glustermountpoint": volume.Mount.GlusterFS.MountPoint,
+				"glusterserver":     volume.Mount.GlusterFS.Hosts[0],
+				"glusterbkpservers": volume.Mount.GlusterFS.Options["backup-volfile-servers"],
 			},
 		},
 	}
 
-	glog.V(4).Infof("CSI volume response: %+v", protosanitizer.StripSecrets(resp))
+	log.Infof("CSI volume response: %+v", protosanitizer.StripSecrets(resp))
 	return resp, nil
 }
 
@@ -133,7 +124,7 @@ func (cs *ControllerServer) getClusterNodes() (*string, []string, error) {
 		}
 		bkpservers = append(bkpservers, node.Hostnames.Storage...)
 	}
-	glog.V(2).Infof("primary and backup gluster servers [%+v,%+v]", glusterServer, bkpservers)
+	log.Infof("primary and backup gluster servers [%+v,%+v]", glusterServer, bkpservers)
 
 	return &glusterServer, bkpservers, err
 }
@@ -144,13 +135,13 @@ func (cs *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if volumeID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID is nil")
 	}
-	glog.V(2).Infof("deleting volume with ID: %s", volumeID)
+	log.Infof("deleting volume with ID: %s", volumeID)
 	err := cs.client.VolumeDelete(req.VolumeId)
 	if err != nil {
-		glog.Errorf("deleting volume %s failed: %v", req.VolumeId, err)
+		log.Errorf("deleting volume %s failed: %v", req.VolumeId, err)
 		return nil, status.Errorf(codes.Internal, "deleting volume %s failed: %v", req.VolumeId, err)
 	}
-	glog.Infof("successfully deleted volume %s", volumeID)
+	log.Infof("successfully deleted volume %s", volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -213,7 +204,7 @@ func (cs *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 		},
 	}
 
-	glog.V(1).Infof("GlusterFS CSI driver volume capabilities: %+v", resp)
+	log.Infof("GlusterFS CSI driver volume capabilities: %+v", resp)
 	return resp, nil
 }
 
@@ -288,15 +279,15 @@ func (cs *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 }
 
 func (cs *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	glog.V(2).Infof("request received %+v", protosanitizer.StripSecrets(req))
-	glog.V(1).Infof("expanding volume with name %s", req.VolumeId)
+	log.Infof("request received %+v", protosanitizer.StripSecrets(req))
+	log.Infof("expanding volume with name %s", req.VolumeId)
 
 	volSizeBytes := cs.getVolumeSize(req)
 	volume, err := cs.client.VolumeExpand(req.VolumeId, &api.VolumeExpandRequest{
 		Size: util.FromBytesToGb(int64(volSizeBytes)),
 	})
 	if err != nil {
-		glog.Errorf("failed to expand volume: %v", err)
+		log.Errorf("failed to expand volume: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to expand volume: %v", err)
 	}
 	return &csi.ControllerExpandVolumeResponse{
@@ -305,27 +296,21 @@ func (cs *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}, nil
 }
 func (cs *ControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
-	glog.V(2).Infof("request received %+v", protosanitizer.StripSecrets(req))
-	glog.V(1).Infof("getting volume with name %s", req.VolumeId)
+	log.Infof("request received %+v", protosanitizer.StripSecrets(req))
+	log.Infof("getting volume with name %s", req.VolumeId)
 	volume, err := cs.client.VolumeInfo(req.VolumeId)
 	if err != nil {
-		glog.Errorf("failed to get volume: %v", err)
+		log.Errorf("failed to get volume: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to get volume: %v", err)
 	}
-	glusterServer, bkpServers, err := cs.getClusterNodes()
-	if err != nil {
-		glog.Errorf("failed to get cluster nodes: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to get cluster nodes: %v", err)
-	}
-
 	return &csi.ControllerGetVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: util.FromGbToBytes(int64(volume.Size)),
 			VolumeId:      volume.Id,
 			VolumeContext: map[string]string{
-				"glustervol":        volume.Id,
-				"glusterserver":     *glusterServer,
-				"glusterbkpservers": strings.Join(bkpServers, ":"),
+				"glustermountpoint": volume.Mount.GlusterFS.MountPoint,
+				"glusterserver":     volume.Mount.GlusterFS.Hosts[0],
+				"glusterbkpservers": volume.Mount.GlusterFS.Options["backup-volfile-servers"],
 			},
 		},
 	}, nil

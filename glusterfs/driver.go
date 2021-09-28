@@ -2,8 +2,8 @@ package glusterfs
 
 import (
 	"github.com/NativeCI/gluster-heketi-csi-driver/config"
-	"github.com/golang/glog"
 	heketi "github.com/heketi/heketi/client/api/go-client"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -23,14 +23,14 @@ func New(config *config.Config) *GfDriver {
 	gfd := &GfDriver{}
 
 	if config == nil {
-		glog.Errorf("GlusterFS CSI driver initialization failed")
+		log.Errorf("GlusterFS CSI driver initialization failed")
 		return nil
 	}
 
 	gfd.Config = config
 	gfd.client = heketi.NewClient(gfd.Config.HeketiURL, gfd.Config.HeketiUser, gfd.Config.HeketiSecret)
 
-	glog.V(1).Infof("GlusterFS CSI driver initialized")
+	log.Infof("GlusterFS CSI driver initialized")
 
 	return gfd
 }

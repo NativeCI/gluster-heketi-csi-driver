@@ -2,15 +2,14 @@ package glusterfs
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
 	"github.com/NativeCI/gluster-heketi-csi-driver/util"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/mount-utils"
@@ -52,7 +51,7 @@ func (ns *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 // NodePublishVolume mounts the volume mounted to the staging path to the target
 // path
 func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	glog.V(2).Infof("received node publish volume request %+v", protosanitizer.StripSecrets(req))
+	log.Infof("received node publish volume request %+v", protosanitizer.StripSecrets(req))
 
 	if err := ns.validateNodePublishVolumeReq(req); err != nil {
 		return nil, err
@@ -83,10 +82,7 @@ func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if req.GetReadonly() {
 		mo = append(mo, "ro")
 	}
-	gs := req.GetVolumeContext()["glusterserver"]
-
-	ep := req.GetVolumeContext()["glustervol"]
-	source := fmt.Sprintf("%s:%s", gs, ep)
+	source := req.GetVolumeContext()["glustermountpoint"]
 	err = doMount(source, targetPath, mo)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
