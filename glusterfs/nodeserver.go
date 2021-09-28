@@ -60,10 +60,10 @@ func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	targetPath := req.GetTargetPath()
 
 	notMnt, err := glusterMounter.IsLikelyNotMountPoint(targetPath)
-
 	if err != nil {
 		if os.IsNotExist(err) {
 			// #nosec
+			log.Infof("creating a new directory at %s", targetPath)
 			if err = os.MkdirAll(targetPath, 0777); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
