@@ -14,3 +14,7 @@ I am currently using this driver for Hashicorp Nomad, which has full support of 
 Because I have first tested with alpine based image (didn't work) and then with amazonlinux (failed as well) and started receiving weird errors about missing devices, so I decided to match my host setup which centos 7.
 
 If you have any suggestions on how I can reduce image size, I would be more than welcome to discuss them.
+
+## Contributing
+If you have any issues or would like to contribute, feel free to open an issue or PR.
+
