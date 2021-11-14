@@ -7,11 +7,10 @@ job "plugin-gluster-csi-controller" {
 
       config {
         image = "dragma/gluster-heketi-csi-driver"
-
+        network_mode = "host"
         args = [
           "controller",
           "--endpoint=unix://csi/csi.sock",
-          "--v=5",
           "--heketiurl=http://localhost:8080"
         ]
       }
@@ -23,8 +22,8 @@ job "plugin-gluster-csi-controller" {
       }
 
       resources {
-        cpu    = 500
-        memory = 256
+        cpu    = 100
+        memory = 128
       }
     }
   }

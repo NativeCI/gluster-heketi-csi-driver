@@ -10,8 +10,8 @@ job "plugin-gluster-csi-nodes" {
       driver = "docker"
 
       config {
+        network_mode = "host"
         image = "dragma/gluster-heketi-csi-driver"
-
         args = [
           "nodeserver",
           "--endpoint=unix://csi/csi.sock",
@@ -30,8 +30,8 @@ job "plugin-gluster-csi-nodes" {
       }
 
       resources {
-        cpu    = 500
-        memory = 256
+        cpu    = 100
+        memory = 128
       }
     }
   }
