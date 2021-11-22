@@ -3,6 +3,8 @@ package glusterfs
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 
 	"github.com/NativeCI/gluster-heketi-csi-driver/util"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -55,11 +57,48 @@ func (cs *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// If volume does not exist, provision volume
 	//Create the volume
-	//TODO create volume based on the request input, like distribute, replica etc.
-	volume, err := cs.client.VolumeCreate(&api.VolumeCreateRequest{
+	createRequest := &api.VolumeCreateRequest{
 		Size: volSizeBytes,
 		Name: req.Name,
-	})
+	}
+	if volumeType, ok := req.GetParameters()["glustervolumetype"]; ok {
+		parameters := strings.Split(volumeType, ":")
+		if len(parameters) == 0 {
+			createRequest.Durability = api.VolumeDurabilityInfo{
+				Type: api.DurabilityDistributeOnly,
+			}
+		} else if len(parameters) == 1 {
+			//Replicated
+			replicaCount, err := strconv.Atoi(parameters[1])
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "cannot parse the parameters: %v", err)
+			}
+			createRequest.Durability = api.VolumeDurabilityInfo{
+				Type: api.DurabilityReplicate,
+				Replicate: api.ReplicaDurability{
+					Replica: replicaCount,
+				},
+			}
+		} else if len(parameters) == 2 {
+			//Disperse
+			dataCount, err := strconv.Atoi(parameters[1])
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "cannot parse the parameters: %v", err)
+			}
+			redundancyCount, err := strconv.Atoi(parameters[1])
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "cannot parse the parameters: %v", err)
+			}
+			createRequest.Durability = api.VolumeDurabilityInfo{
+				Type: api.DurabilityEC,
+				Disperse: api.DisperseDurability{
+					Data:       dataCount,
+					Redundancy: redundancyCount,
+				},
+			}
+		}
+	}
+	volume, err := cs.client.VolumeCreate(createRequest)
 	if err != nil {
 		log.Errorf("failed to create volume: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create volume: %v", err)

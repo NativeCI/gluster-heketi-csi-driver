@@ -8,3 +8,6 @@ capability {
     attachment_mode = "file-system"
     access_mode = "single-node-writer"
 }
+parameters {
+    glustervolumetype = "replicate:3"
+}
