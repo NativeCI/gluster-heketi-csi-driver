@@ -63,11 +63,11 @@ func (cs *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	if volumeType, ok := req.GetParameters()["glustervolumetype"]; ok {
 		parameters := strings.Split(volumeType, ":")
-		if len(parameters) == 0 {
+		if len(parameters) == 1 {
 			createRequest.Durability = api.VolumeDurabilityInfo{
 				Type: api.DurabilityDistributeOnly,
 			}
-		} else if len(parameters) == 1 {
+		} else if len(parameters) == 2 {
 			//Replicated
 			replicaCount, err := strconv.Atoi(parameters[1])
 			if err != nil {
@@ -79,7 +79,7 @@ func (cs *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					Replica: replicaCount,
 				},
 			}
-		} else if len(parameters) == 2 {
+		} else if len(parameters) == 3 {
 			//Disperse
 			dataCount, err := strconv.Atoi(parameters[1])
 			if err != nil {
