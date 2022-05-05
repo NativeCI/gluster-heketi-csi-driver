@@ -83,6 +83,8 @@ func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mo = append(mo, "ro")
 	}
 	source := req.GetVolumeContext()["glustermountpoint"]
+	backupServers := strings.Replace(req.GetVolumeContext()["backupvolfile-server"], ",", ":", -1)
+	mo = append(mo, "backup-volfile-servers="+backupServers)
 	err = doMount(source, targetPath, mo)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
