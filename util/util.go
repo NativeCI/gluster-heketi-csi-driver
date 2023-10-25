@@ -10,10 +10,12 @@ import (
 	"k8s.io/mount-utils"
 )
 
+const transportEndpointNotConnected = "transport endpoint is not connected"
+
 // UnmountPath is a common unmount routine that unmounts the given path and
 // deletes the remaining directory if successful.
 func UnmountPath(mountPath string, mounter mount.Interface) error {
-	return UnmountMountPoint(mountPath, mounter, false /* extensiveMountPointCheck */)
+	return UnmountMountPoint(mountPath, mounter)
 }
 
 // UnmountMountPoint is a common unmount routine that unmounts the given path and
@@ -21,7 +23,7 @@ func UnmountPath(mountPath string, mounter mount.Interface) error {
 // if extensiveMountPointCheck is true
 // IsNotMountPoint will be called instead of IsLikelyNotMountPoint.
 // IsNotMountPoint is more expensive but properly handles bind mounts.
-func UnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
+func UnmountMountPoint(mountPath string, mounter mount.Interface) error {
 	pathExists, pathErr := PathExists(mountPath)
 	if !pathExists {
 		log.Warningf("Warning: Unmount skipped because path does not exist: %v", mountPath)
@@ -31,7 +33,7 @@ func UnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMount
 	if pathErr != nil && !corruptedMnt {
 		return fmt.Errorf("Error checking path: %v", pathErr)
 	}
-	return doUnmountMountPoint(mountPath, mounter, extensiveMountPointCheck, corruptedMnt)
+	return doUnmountMountPoint(mountPath, mounter, corruptedMnt)
 }
 
 // doUnmountMountPoint is a common unmount routine that unmounts the given path and
@@ -40,26 +42,7 @@ func UnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMount
 // IsNotMountPoint will be called instead of IsLikelyNotMountPoint.
 // IsNotMountPoint is more expensive but properly handles bind mounts.
 // if corruptedMnt is true, it means that the mountPath is a corrupted mountpoint, Take it as an argument for convenience of testing
-func doUnmountMountPoint(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool, corruptedMnt bool) error {
-	if !corruptedMnt {
-		var notMnt bool
-		var err error
-		if extensiveMountPointCheck {
-			notMnt, err = mount.IsNotMountPoint(mounter, mountPath)
-		} else {
-			notMnt, err = mounter.IsLikelyNotMountPoint(mountPath)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		if notMnt {
-			log.Warningf("Warning: %q is not a mountpoint, deleting", mountPath)
-			return os.Remove(mountPath)
-		}
-	}
-
+func doUnmountMountPoint(mountPath string, mounter mount.Interface, corruptedMnt bool) error {
 	// Unmount the mount path
 	log.Infof("%q is a mountpoint, unmounting", mountPath)
 	if err := mounter.Unmount(mountPath); err != nil {
@@ -83,6 +66,9 @@ func PathExists(path string) (bool, error) {
 		return true, nil
 	} else if os.IsNotExist(err) {
 		return false, nil
+	} else if err.Error() == transportEndpointNotConnected {
+		//This error is okay when we restart csi-nodes
+		return true, nil
 	} else if isCorruptedMnt(err) {
 		return true, err
 	} else {

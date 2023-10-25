@@ -153,20 +153,7 @@ func (ns *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	targetPath := req.GetTargetPath()
-	notMnt, err := glusterMounter.IsLikelyNotMountPoint(targetPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, status.Error(codes.NotFound, "targetpath not found")
-		}
-		return nil, status.Error(codes.Internal, err.Error())
-
-	}
-
-	if notMnt {
-		return nil, status.Error(codes.NotFound, "volume not mounted")
-	}
-
-	err = util.UnmountPath(req.GetTargetPath(), glusterMounter)
+	err := util.UnmountPath(targetPath, glusterMounter)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
